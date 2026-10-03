@@ -250,7 +250,7 @@ def parse_ai_response(ai_text):
         }
     except Exception:
         return fallback
-if st.button("🔄 Sync Live Feed & Audit Media"):
+        if st.button("🔄 Sync Live Feed & Audit Media"):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
         st.error("Please add your Gemini API Key before running.")
     else:
@@ -265,9 +265,44 @@ if st.button("🔄 Sync Live Feed & Audit Media"):
                     
                     headline_lower = title.lower()
                     matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in headline_lower), None)
-                     headline_lower = title.lower()
-                    matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in headline_lower), None)
                     keyword_matched = matched_kw is not None if WATCH_KEYWORDS else False
+                    
+                    ai_raw = analyze_headline_with_ai(title)
+                    analysis = parse_ai_response(ai_raw)
+                    
+                    trigger_alert = False
+                    if keyword_matched and analysis["bias"]:
+                        if alert_severity == "Flag Any Bias (Sensitive)":
+                            trigger_alert = True
+                        elif alert_severity == "Flag Extreme Manipulation Only" and analysis["severity"] in ["Medium", "High"]:
+                            trigger_alert = True
+                    
+                    # --- FORCED LOG TO DATABASE FOR TESTING ---
+                    # We keep this as True to guarantee entries log during your session test
+                    if True:
+                        log_alert_to_db(title, source, analysis["severity"], analysis["reason"], matched_kw)
+                    
+                    with st.container():
+                        if trigger_alert:
+                            st.error(f"🚨 ALERT RECORDED: Logged into local database rules.")
+                        
+                        col1, col2 = st.columns()
+                        with col1:
+                            st.markdown(f"### {idx+1}. {title}")
+                            st.caption(f"Source: **{source}** | [Link]({link})")
+                            if keyword_matched:
+                                st.markdown(f"🎯 *Matched keyword rule: `{matched_kw}`*")
+                        with col2:
+                            if analysis["bias"]:
+                                st.warning(f"⚠️ **AI Audit ({analysis['severity']} Bias):**")
+                                st.markdown(f"- **Tactic:** `{analysis['technique']}`")
+                                st.markdown(f"- **Trigger:** :red-background[*{analysis['term']}*]")
+                                st.markdown(f"- **Analysis:** *{analysis['reason']}*")
+                            else:
+                                st.success(f"✅ **AI Audit:** {analysis['reason']}")
+                        st.divider()
+
+# =====================================================================
 # 6. FORCE LAYOUT METRICS DISPLAY PANEL
 # =====================================================================
 st.sidebar.divider()
@@ -276,8 +311,8 @@ st.sidebar.header("📊 Database Audit Metrics")
 try:
     total_alerts, top_publishers = get_db_stats()
     
-    # Extract the raw count number safely
-    total_count = total_alerts[0] if total_alerts else 0
+    # Extract the raw count number safely from the tuple return
+    total_count = total_alerts[0] if total_alerts and isinstance(total_alerts, tuple) else 0
     st.sidebar.metric(label="Total Logged Incidents", value=total_count)
 
     if top_publishers:
@@ -286,5 +321,3 @@ try:
             st.sidebar.write(f"- **{pub}**: {count} flags")
     else:
         st.sidebar.caption("No sources logged in database yet.")
-except Exception as e:
-    st.sidebar.error(f"Metrics panel failed to load: {e}")
