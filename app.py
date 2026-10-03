@@ -162,8 +162,7 @@ def get_ai_client(api_key):
         return True
     return False
 
-# Safely call the initializer using the variable defined right above it
-client_is_ready = get_ai_client(GEMINI_API_KEY)
+def fetch_live_headlines(api_key):
     if api_key == "YOUR_GNEWS_API_KEY" or not api_key:
         st.warning("⚠️ Please insert your valid GNews API Key.")
         return []
@@ -173,6 +172,7 @@ client_is_ready = get_ai_client(GEMINI_API_KEY)
         return response.json().get("articles", [])
     except Exception as e:
         st.error(f"Failed to connect to media stream: {e}")
+        return []
         return []
 
 def analyze_headline_with_ai(headline_text):
