@@ -285,7 +285,7 @@ if st.button("🔄 Sync Live Feed & Audit Media"):
                         if trigger_alert:
                             st.error("🚨 ALERT RECORDED: Logged into local database rules.")
                         
-                        col1, col2 = st.columns()
+                        col1, col2 = st.columns(2)
                         with col1:
                             st.markdown(f"### {idx+1}. {title}")
                             st.caption(f"Source: **{source}** | [Link]({link})")
