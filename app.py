@@ -167,10 +167,7 @@ def fetch_live_headlines(api_key):
         st.warning("⚠️ Please insert your valid GNews API Key.")
         return []
         
-    # Hardcoded base web URL with absolutely no code brackets inside the string
     url = "https://gnews.io"
-    
-    # Let Python safely inject the parameters in a clean dictionary
     query_parameters = {
         "category": "general",
         "lang": "en",
@@ -178,8 +175,13 @@ def fetch_live_headlines(api_key):
     }
     
     try:
-        # Pass the dictionary safely to the network requests engine
         response = requests.get(url, params=query_parameters)
+        
+        # If GNews sends an error code (like 401 or 403), show the raw message
+        if response.status_code != 200:
+            st.error(f"🚫 GNews Server returned an error code {response.status_code}: {response.text}")
+            return []
+            
         return response.json().get("articles", [])
     except Exception as e:
         st.error(f"Failed to connect to media stream: {e}")
