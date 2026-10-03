@@ -148,13 +148,12 @@ if st.sidebar.button("📦 Email Me Database Log (CSV)"):
 # =====================================================================
 # To run safely locally, read from string. On the cloud, read from st.secrets
 GNEWS_API_KEY = st.secrets.get("GNEWS_API_KEY") if "GNEWS_API_KEY" in st.secrets else "YOUR_GNEWS_API_KEY"
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else "YOUR_GEMINI_API_KEY"
-
-@st.cache_resource
+# --- REPLACED WITH SECURE COMPATIBILITY LOOKUP ---
 def get_ai_client(api_key):
     if api_key and api_key != "YOUR_GEMINI_API_KEY":
-        return genai.Client(api_key=api_key)
-    return None
+        genai.configure(api_key=api_key)
+        return True
+    return False
 
 client = get_ai_client(GEMINI_API_KEY)
 
