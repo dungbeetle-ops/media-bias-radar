@@ -200,7 +200,6 @@ def fetch_live_headlines(api_key):
         return []
 
 def analyze_headline_with_ai(headline_text):
-    # Fallback initialization using the direct client configurator
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
         return '{"bias_found": false, "severity": "Low", "technique_detected": "None", "manipulated_term": "None", "forensic_breakdown": "Gemini Key Missing."}'
         
@@ -226,7 +225,14 @@ def analyze_headline_with_ai(headline_text):
     Do not wrap the output in markdown code blocks like ```json. Output raw text only.
     """
     try:
-        # Direct configuration endpoint that bypasses namespace def parse_ai_response(ai_text):
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"AI error: {e}"
+
+def parse_ai_response(ai_text):
     """Processes string responses securely into structured Python dictionary items."""
     fallback = {"bias": False, "severity": "Low", "technique": "None", "term": "None", "reason": "Failed to parse AI payload"}
     try:
@@ -304,7 +310,7 @@ st.sidebar.header("📊 Database Audit Metrics")
 try:
     total_alerts, top_publishers = get_db_stats()
     
-    # Safely extract count tuple entries
+    # Extract row count safely from tuple structure
     total_count = total_alerts[0] if total_alerts and isinstance(total_alerts, tuple) else 0
     st.sidebar.metric(label="Total Logged Incidents", value=total_count)
 
