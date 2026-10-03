@@ -10,8 +10,8 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
-from email import encoders
-from google import genai
+# --- REPLACED CONFLICTING GOOGLE GENAI CLIENT IMPORT ---
+import google.generativeai as genai
 
 # =====================================================================
 # 1. PAGE LAYOUT & SETUP
@@ -171,7 +171,8 @@ def fetch_live_headlines(api_key):
         return []
 
 def analyze_headline_with_ai(headline_text):
-    if not client:
+    # Fallback initialization using the direct client configurator
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
         return '{"bias_found": false, "severity": "Low", "technique_detected": "None", "manipulated_term": "None", "forensic_breakdown": "Gemini Key Missing."}'
         
     prompt = f"""
@@ -196,26 +197,13 @@ def analyze_headline_with_ai(headline_text):
     Do not wrap the output in markdown code blocks like ```json. Output raw text only.
     """
     try:
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        # Direct configuration endpoint that bypasses namespace problems
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         return f"AI error: {e}"
-
-
-
-def parse_ai_response(ai_text):
-    fallback = {"bias": False, "severity": "Low", "technique": "None", "term": "None", "reason": "Failed to parse AI payload"}
-    try:
-        data = json.loads(ai_text.strip())
-        return {
-            "bias": data.get("bias_found", False),
-            "severity": data.get("severity", "Low"),
-            "technique": data.get("technique_detected", "None"),
-            "term": data.get("manipulated_term", "None"),
-            "reason": data.get("forensic_breakdown", "")
-        }
-    except Exception:
-        return fallback
 
 # =====================================================================
 # 5. CORE INTERFACE RUNNER
