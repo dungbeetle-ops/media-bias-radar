@@ -166,13 +166,23 @@ def fetch_live_headlines(api_key):
     if api_key == "YOUR_GNEWS_API_KEY" or not api_key:
         st.warning("⚠️ Please insert your valid GNews API Key.")
         return []
-    url = f"https://gnews.io{api_key}"
+        
+    # Hardcoded base web URL with absolutely no code brackets inside the string
+    url = "https://gnews.io"
+    
+    # Let Python safely inject the parameters in a clean dictionary
+    query_parameters = {
+        "category": "general",
+        "lang": "en",
+        "apikey": api_key
+    }
+    
     try:
-        response = requests.get(url)
+        # Pass the dictionary safely to the network requests engine
+        response = requests.get(url, params=query_parameters)
         return response.json().get("articles", [])
     except Exception as e:
         st.error(f"Failed to connect to media stream: {e}")
-        return []
         return []
 
 def analyze_headline_with_ai(headline_text):
