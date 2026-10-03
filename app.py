@@ -142,22 +142,28 @@ st.sidebar.header("📤 Data Export Hub")
 if st.sidebar.button("📦 Email Me Database Log (CSV)"):
     with st.spinner("Compiling tables and transmitting stream..."):
         export_db_and_send_email()
-
 # =====================================================================
 # 4. EXTERNAL DATA PIPELINES (News & AI APIs)
 # =====================================================================
-# To run safely locally, read from string. On the cloud, read from st.secrets
+# Safe Lookups: Variable assignment MUST happen first
 GNEWS_API_KEY = st.secrets.get("GNEWS_API_KEY") if "GNEWS_API_KEY" in st.secrets else "YOUR_GNEWS_API_KEY"
-# --- REPLACED WITH SECURE COMPATIBILITY LOOKUP ---
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else "YOUR_GEMINI_API_KEY"
+
+if not GNEWS_API_KEY or GNEWS_API_KEY == "YOUR_GNEWS_API_KEY":
+    st.sidebar.error("🔑 Missing GNews API Key. Add it to your Streamlit Cloud Secrets.")
+
+if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
+    st.sidebar.error("🔑 Missing Gemini API Key. Add it to your Streamlit Cloud Secrets.")
+
 def get_ai_client(api_key):
+    """Bypasses namespace constructors to configure universal model auth state."""
     if api_key and api_key != "YOUR_GEMINI_API_KEY":
         genai.configure(api_key=api_key)
         return True
     return False
 
-client = get_ai_client(GEMINI_API_KEY)
-
-def fetch_live_headlines(api_key):
+# Safely call the initializer using the variable defined right above it
+client_is_ready = get_ai_client(GEMINI_API_KEY)
     if api_key == "YOUR_GNEWS_API_KEY" or not api_key:
         st.warning("⚠️ Please insert your valid GNews API Key.")
         return []
