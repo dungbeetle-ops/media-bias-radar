@@ -237,20 +237,10 @@ def analyze_headline_with_ai(headline_text):
 # =====================================================================
 # 5. CORE INTERFACE RUNNER
 def parse_ai_response(ai_text):
-    """Processes string responses securely into structured Python dictionary items."""
-    fallback = {"bias": False, "severity": "Low", "technique": "None", "term": "None", "reason": "Failed to parse AI payload"}
-    try:
-        data = json.loads(ai_text.strip())
-        return {
-            "bias": data.get("bias_found", False),
-            "severity": data.get("severity", "Low"),
-            "technique": data.get("technique_detected", "None"),
-            "term": data.get("manipulated_term", "None"),
-            "reason": data.get("forensic_breakdown", "")
-        }
-    except Exception:
-        return fallback
-        if st.button("🔄 Sync Live Feed & Audit Media"):
+# =====================================================================
+# 5. CORE INTERFACE RUNNER
+# =====================================================================
+if st.button("🔄 Sync Live Feed & Audit Media"):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
         st.error("Please add your Gemini API Key before running.")
     else:
@@ -278,13 +268,12 @@ def parse_ai_response(ai_text):
                             trigger_alert = True
                     
                     # --- FORCED LOG TO DATABASE FOR TESTING ---
-                    # We keep this as True to guarantee entries log during your session test
                     if True:
                         log_alert_to_db(title, source, analysis["severity"], analysis["reason"], matched_kw)
                     
                     with st.container():
                         if trigger_alert:
-                            st.error(f"🚨 ALERT RECORDED: Logged into local database rules.")
+                            st.error("🚨 ALERT RECORDED: Logged into local database rules.")
                         
                         col1, col2 = st.columns()
                         with col1:
@@ -311,7 +300,7 @@ st.sidebar.header("📊 Database Audit Metrics")
 try:
     total_alerts, top_publishers = get_db_stats()
     
-    # Extract the raw count number safely from the tuple return
+    # Safely unpack the single row result from count query
     total_count = total_alerts[0] if total_alerts and isinstance(total_alerts, tuple) else 0
     st.sidebar.metric(label="Total Logged Incidents", value=total_count)
 
@@ -321,3 +310,5 @@ try:
             st.sidebar.write(f"- **{pub}**: {count} flags")
     else:
         st.sidebar.caption("No sources logged in database yet.")
+except Exception as e:
+    st.sidebar.error(f"Metrics panel failed to load: {e}")
