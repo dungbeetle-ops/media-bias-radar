@@ -265,9 +265,24 @@ if st.button("🔄 Sync Live Feed & Audit Media"):
                     
                     headline_lower = title.lower()
                     matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in headline_lower), None)
-                    keyword_matched = matched_kw is not None if WATCH_KEYWORDS else False
-                    
-                    ai_raw = analyze_headline_with_ai(title)
-                    analysis = parse_ai_response(ai_raw)
-                    
-                    trigger_alert = False
+                    keyword_matched = matched_kw is not None if WATCH_KEYWORDS else # =====================================================================
+# 6. FORCE LAYOUT METRICS DISPLAY PANEL
+# =====================================================================
+st.sidebar.divider()
+st.sidebar.header("📊 Database Audit Metrics")
+
+try:
+    total_alerts, top_publishers = get_db_stats()
+    
+    # Extract the raw count number safely
+    total_count = total_alerts[0] if total_alerts else 0
+    st.sidebar.metric(label="Total Logged Incidents", value=total_count)
+
+    if top_publishers:
+        st.sidebar.markdown("### Top Sources Flagged:")
+        for pub, count in top_publishers:
+            st.sidebar.write(f"- **{pub}**: {count} flags")
+    else:
+        st.sidebar.caption("No sources logged in database yet.")
+except Exception as e:
+    st.sidebar.error(f"Metrics panel failed to load: {e}")
