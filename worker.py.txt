@@ -1,0 +1,167 @@
+python
+import time
+import requests
+import sqlite3
+import json
+from datetime import datetime
+from google import genai
+
+# =====================================================================
+# 1. CORE SYSTEM CONFIGURATION
+# =====================================================================
+DB_FILE = "media_radar.db"
+
+# Paste your actual live developer API tokens here
+GNEWS_API_KEY = "YOUR_GNEWS_API_KEY"
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+
+# The subjects you want this background machine to monitor silently
+WATCH_KEYWORDS = ["election", "tech", "climate", "economy", "president", "war", "crisis"]
+
+# Logging threshold filter ("all" records everything, "extreme" blocks low bias)
+ALERT_SEVERITY_THRESHOLD = "all" 
+
+# Loop check interval: 3600 seconds = 1 Hour
+SYNC_INTERVAL_SECONDS = 3600
+
+# Initialize the Google GenAI Engine
+def get_ai_client():
+    if GEMINI_API_KEY and GEMINI_API_KEY != "YOUR_GEMINI_API_KEY":
+        return genai.Client(api_key=GEMINI_API_KEY)
+    return None
+
+client = get_ai_client()
+
+# =====================================================================
+# 2. AUTOMATED TASK OPERATIONS
+# =====================================================================
+def fetch_live_headlines():
+    """Queries live global media data stream via GNews."""
+    if GNEWS_API_KEY == "YOUR_GNEWS_API_KEY" or not GNEWS_API_KEY:
+        print(f"[{datetime.now()}] ⚠️ Configuration Alert: GNews API Key is missing.")
+        return []
+        
+    url = f"https://gnews.io{GNEWS_API_KEY}"
+    try:
+        response = requests.get(url, timeout=15)
+        return response.json().get("articles", [])
+    except Exception as e:
+        print(f"[{datetime.now()}] ❌ Network Connection Error: {e}")
+        return []
+
+def analyze_headline_with_ai(headline_text):
+    """Feeds text to the Gemini model requesting structured forensic diagnostics."""
+    if not client:
+        return '{"bias_found": false, "severity": "Low", "technique_detected": "None", "manipulated_term": "None", "forensic_breakdown": "Client offline."}'
+        
+    prompt = f"""
+    You are an expert system specialized in forensic linguistics, media literacy, and propaganda analysis.
+    Deconstruct the following news headline for narrative bias and psychological persuasion techniques:
+    "{headline_text}"
+    
+    Examine the text explicitly for these advanced manipulation mechanics:
+    1. Manufactured Urgency / Panic: Creating false anxiety or framing natural volatility as a catastrophic event.
+    2. Character Assassination / Poisoning the Well: Inserting subjective adjectives (e.g., 'defiant', 'scrambling', 'desperate') to pre-condition the reader's view of an individual.
+    3. Structural Omission / False Choice: Presenting a nuanced situation as a rigid, high-stakes binary conflict.
+    4. Epistemic Bias: Presenting a contested claim or opinion as an established objective fact.
+    
+    You must format your response strictly as a valid JSON object with the following keys:
+    {{
+        "bias_found": true/false,
+        "severity": "Low" or "Medium" or "High",
+        "technique_detected": "Name of the propaganda or rhetorical technique found, or 'None'",
+        "manipulated_term": "The exact word or phrase causing the spin, or 'None'",
+        "forensic_breakdown": "A precise 1-sentence analytical explanation detailing how the text attempts to persuade the reader."
+    }}
+    Do not wrap the output in markdown code blocks like ```json. Output raw text only.
+    """
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"AI error: {e}"
+
+def parse_ai_response(ai_text):
+    """Processes string responses securely into structured Python dictionary items."""
+    try:
+        data = json.loads(ai_text.strip())
+        return {
+            "bias": data.get("bias_found", False),
+            "severity": data.get("severity", "Low"),
+            "technique": data.get("technique_detected", "None"),
+            "term": data.get("manipulated_term", "None"),
+            "reason": data.get("forensic_breakdown", "")
+        }
+    except Exception:
+        return {"bias": False, "severity": "Low", "technique": "None", "term": "None", "reason": "Parsing Failure"}
+
+def log_alert_to_db(headline, source, severity, reason, keyword):
+    """Logs raw audit telemetry permanently into the local SQLite schema."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO bias_alerts (timestamp, headline, source_name, severity, reason, matched_keyword)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (timestamp, headline, source, severity, reason, keyword))
+    conn.commit()
+    conn.close()
+
+# =====================================================================
+# 3. INFINITE CRON-STYLE EXECUTION LOOP
+# =====================================================================
+def execute_sync_cycle():
+    print(f"[{datetime.now()}] 📡 Background Worker checking live media pipelines...")
+    articles = fetch_live_headlines()
+    
+    if not articles:
+        print(f"[{datetime.now()}] Synchronization complete: No news payload returned.")
+        return
+        
+    logged_alerts_count = 0
+    
+    for article in articles:
+        title = article.get("title", "")
+        source = article.get("source", {}).get("name", "Unknown Source")
+        
+        # Rule filter: Check if headline matches our tracking targets
+        title_lower = title.lower()
+        matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in title_lower), None)
+        
+        if matched_kw:
+            # Query AI Model
+            ai_raw_json = analyze_headline_with_ai(title)
+            analysis = parse_ai_response(ai_raw_json)
+            
+            # Determine threshold allowance
+            should_save = False
+            if analysis["bias"]:
+                if ALERT_SEVERITY_THRESHOLD == "all":
+                    should_save = True
+                elif ALERT_SEVERITY_THRESHOLD == "extreme" and analysis["severity"] in ["Medium", "High"]:
+                    should_save = True
+            
+            # Commit to relational SQL tables
+            if should_save:
+                log_alert_to_db(title, source, analysis["severity"], analysis["reason"], matched_kw)
+                logged_alerts_count += 1
+                print(f" -> 🚨 ALERT STORED [{source}]: \"{title[:45]}...\" Tactic: {analysis['technique']}")
+
+    print(f"[{datetime.now()}] ✅ Cycle complete. Scanned {len(articles)} stories. Logged {logged_alerts_count} brand-new incidents.\n")
+
+if __name__ == "__main__":
+    print("==================================================================")
+    print("🚀 SYSTEM START: Media Bias Background Daemon Engine Active")
+    print("   Monitoring subjects silently... Hold Ctrl+C to terminate task.")
+    print("==================================================================")
+    
+    # Run immediate validation cycle upon execution startup
+    execute_sync_cycle()
+    
+    # Rest and loop indefinitely
+    while True:
+        time.sleep(SYNC_INTERVAL_SECONDS)
+        execute_sync_cycle()
