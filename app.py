@@ -163,30 +163,23 @@ def get_ai_client(api_key):
     return False
 
 def fetch_live_headlines(api_key):
-    # Ensure api_key is a clean string and strip any accidental whitespace
     clean_key = str(api_key).strip() if api_key else ""
     
     if clean_key == "YOUR_GNEWS_API_KEY" or not clean_key:
         st.warning("⚠️ Please insert your valid GNews API Key into your Streamlit Secrets.")
         return []
         
-    url = "https://gnews.io"
-    query_parameters = {
-        "category": "general",
-        "lang": "en",
-        "apikey": clean_key
-    }
+    # We stitch the path entirely on one single line to prevent domain redirection
+    full_target_url = f"https://gnews.io{clean_key}"
     
     try:
-        # Request data with a strict timeout safety mechanism
-        response = requests.get(url, params=query_parameters, timeout=10)
+        # Request the single unified string directly
+        response = requests.get(full_target_url, timeout=10)
         
-        # Guard against server-side blocks (like invalid tokens or unverified email accounts)
         if response.status_code != 200:
             st.error(f"🚫 GNews Server Connection Blocked (Status Code {response.status_code}). Raw message: {response.text}")
             return []
             
-        # Safely try parsing the text to json payload
         try:
             data = response.json()
             return data.get("articles", [])
