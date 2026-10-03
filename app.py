@@ -265,7 +265,9 @@ if st.button("🔄 Sync Live Feed & Audit Media"):
                     
                     headline_lower = title.lower()
                     matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in headline_lower), None)
-                    keyword_matched = matched_kw is not None if WATCH_KEYWORDS else # =====================================================================
+                     headline_lower = title.lower()
+                    matched_kw = next((kw for kw in WATCH_KEYWORDS if kw in headline_lower), None)
+                    keyword_matched = matched_kw is not None if WATCH_KEYWORDS else False
 # 6. FORCE LAYOUT METRICS DISPLAY PANEL
 # =====================================================================
 st.sidebar.divider()
