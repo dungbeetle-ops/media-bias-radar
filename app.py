@@ -226,17 +226,21 @@ def analyze_headline_with_ai(headline_text):
     Do not wrap the output in markdown code blocks like ```json. Output raw text only.
     """
     try:
-        # Direct configuration endpoint that bypasses namespace problems
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"AI error: {e}"
+        # Direct configuration endpoint that bypasses namespace def parse_ai_response(ai_text):
+    """Processes string responses securely into structured Python dictionary items."""
+    fallback = {"bias": False, "severity": "Low", "technique": "None", "term": "None", "reason": "Failed to parse AI payload"}
+    try:
+        data = json.loads(ai_text.strip())
+        return {
+            "bias": data.get("bias_found", False),
+            "severity": data.get("severity", "Low"),
+            "technique": data.get("technique_detected", "None"),
+            "term": data.get("manipulated_term", "None"),
+            "reason": data.get("forensic_breakdown", "")
+        }
+    except Exception:
+        return fallback
 
-# =====================================================================
-# 5. CORE INTERFACE RUNNER
-def parse_ai_response(ai_text):
 # =====================================================================
 # 5. CORE INTERFACE RUNNER
 # =====================================================================
@@ -300,7 +304,7 @@ st.sidebar.header("📊 Database Audit Metrics")
 try:
     total_alerts, top_publishers = get_db_stats()
     
-    # Safely unpack the single row result from count query
+    # Safely extract count tuple entries
     total_count = total_alerts[0] if total_alerts and isinstance(total_alerts, tuple) else 0
     st.sidebar.metric(label="Total Logged Incidents", value=total_count)
 
