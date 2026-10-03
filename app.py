@@ -163,18 +163,26 @@ def get_ai_client(api_key):
     return False
 
 def fetch_live_headlines(api_key):
+    # Ensure api_key is treated purely as a text string with no extra spacing
     clean_key = str(api_key).strip() if api_key else ""
     
     if clean_key == "YOUR_GNEWS_API_KEY" or not clean_key:
         st.warning("⚠️ Please insert your valid GNews API Key into your Streamlit Secrets.")
         return []
         
-    # We stitch the path entirely on one single line to prevent domain redirection
-    full_target_url = f"https://gnews.io{clean_key}"
+    # Hardcoded base web URL with a strict cutoff to prevent domain bleeding
+    url = "https://gnews.io/api/v4/top-headlines"
+    
+    # Official GNews query parameters mapped out in a separate structure
+    query_parameters = {
+        "category": "general",
+        "lang": "en",
+        "apikey": clean_key  # Using the mandatory 'apikey' query parameter
+    }
     
     try:
-        # Request the single unified string directly
-        response = requests.get(full_target_url, timeout=10)
+        # Pass parameters cleanly through the network engine
+        response = requests.get(url, params=query_parameters, timeout=10)
         
         if response.status_code != 200:
             st.error(f"🚫 GNews Server Connection Blocked (Status Code {response.status_code}). Raw message: {response.text}")
@@ -184,7 +192,7 @@ def fetch_live_headlines(api_key):
             data = response.json()
             return data.get("articles", [])
         except Exception:
-            st.error(f"🚫 Data Parsing Error: GNews returned text content that wasn't clean JSON. Raw content: {response.text[:200]}")
+            st.error(f"🚫 Data Parsing Error: GNews returned text content that wasn't clean JSON.")
             return []
             
     except Exception as e:
