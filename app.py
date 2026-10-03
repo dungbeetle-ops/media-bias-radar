@@ -163,28 +163,39 @@ def get_ai_client(api_key):
     return False
 
 def fetch_live_headlines(api_key):
-    if api_key == "YOUR_GNEWS_API_KEY" or not api_key:
-        st.warning("⚠️ Please insert your valid GNews API Key.")
+    # Ensure api_key is a clean string and strip any accidental whitespace
+    clean_key = str(api_key).strip() if api_key else ""
+    
+    if clean_key == "YOUR_GNEWS_API_KEY" or not clean_key:
+        st.warning("⚠️ Please insert your valid GNews API Key into your Streamlit Secrets.")
         return []
         
     url = "https://gnews.io"
     query_parameters = {
         "category": "general",
         "lang": "en",
-        "apikey": api_key
+        "apikey": clean_key
     }
     
     try:
-        response = requests.get(url, params=query_parameters)
+        # Request data with a strict timeout safety mechanism
+        response = requests.get(url, params=query_parameters, timeout=10)
         
-        # If GNews sends an error code (like 401 or 403), show the raw message
+        # Guard against server-side blocks (like invalid tokens or unverified email accounts)
         if response.status_code != 200:
-            st.error(f"🚫 GNews Server returned an error code {response.status_code}: {response.text}")
+            st.error(f"🚫 GNews Server Connection Blocked (Status Code {response.status_code}). Raw message: {response.text}")
             return []
             
-        return response.json().get("articles", [])
+        # Safely try parsing the text to json payload
+        try:
+            data = response.json()
+            return data.get("articles", [])
+        except Exception:
+            st.error(f"🚫 Data Parsing Error: GNews returned text content that wasn't clean JSON. Raw content: {response.text[:200]}")
+            return []
+            
     except Exception as e:
-        st.error(f"Failed to connect to media stream: {e}")
+        st.error(f"Failed to connect to media stream network layer: {e}")
         return []
 
 def analyze_headline_with_ai(headline_text):
